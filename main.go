@@ -10,9 +10,7 @@ import (
 )
 
 // https://stackoverflow.com/questions/67750520/golang-context-withtimeout-doesnt-work-with-exec-commandcontext-su-c-command
-
-
-
+//
 // The timeout only applies to the process started by exec, it won't kill any child processes. In your case it will kill the su but not the next python3 process.
 //
 // To kill all children started by a given process you can start it in a new process group and kill the entire group by sending SIGKILL to -pid (negative pid), like so:
@@ -38,38 +36,25 @@ import (
 // Note also that the code relying on syscall isn't portable; it won't even compile on Windows, for example.
 //
 
-func testCase() {
+// broken main
+func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 1000 * time.Millisecond)
 	defer cancel()
 
 	process := exec.CommandContext(ctx, "./infloop_runner")
 
-	type comp struct {
-		output []byte
-		err    error
-	}
-	done := make(chan comp)
+	out, err := process.Output() // never finishes
 
-	go func() {
-		out, err := process.Output()
-		done <- comp{out, err}
-	}()
+	log.Printf("done. Err = %v\nout = ", err, out)
 
-	select {
-	case comp := <- done:
-		log.Printf("got comp %v", comp)
-	case _ = <- ctx.Done():
-		log.Printf("got done")
-	}
-
-	// log.Printf("done. Err = %v", err)
 	if ctx.Err() == context.DeadlineExceeded {
 		log.Println("Timeout")
 	}
 }
 
 
-func main() {
+// fixed main, thanks to stackoverflow
+func mainFixed() {
 	ctx, cancel := context.WithTimeout(context.Background(), 1000 * time.Millisecond)
 	defer cancel()
 
